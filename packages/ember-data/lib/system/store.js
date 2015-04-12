@@ -40,6 +40,8 @@ import {
 
 import RecordArrayManager from "ember-data/system/record-array-manager";
 
+import Reference from "ember-data/system/reference";
+
 import Model from "ember-data/system/model";
 //Stanley told me to do this
 var Backburner = Ember.__loader.require('backburner')['default'] || Ember.__loader.require('backburner')['Backburner'];
@@ -322,7 +324,8 @@ Store = Service.extend({
     // Coerce ID to a string
     properties.id = coerceId(properties.id);
 
-    var record = this.buildRecord(type, properties.id);
+    var reference = this.buildReference(type, properties.id);
+    var record = reference.getRecord();
 
     // Move the record out of its initial `empty` state into
     // the `loaded` state.
@@ -864,7 +867,7 @@ Store = Service.extend({
     @param {String|Integer} id
     @return {DS.Model} record
   */
-  recordForId: function(typeName, inputId) {
+  _recordForId: function(typeName, inputId) {
     var type = this.modelFor(typeName);
     var id = coerceId(inputId);
     var idToRecord = this.typeMapFor(type).idToRecord;
@@ -876,6 +879,21 @@ Store = Service.extend({
 
     return record;
   },
+
+  referenceForId: function(typeName, inputId) {
+    var type = this.modelFor(typeName);
+    var id = coerceId(inputId);
+    var idToRecord = this.typeMapFor(type).idToRecord;
+    var record = idToRecord[id];
+
+    if (!record || !idToRecord[id]) {
+      record = this.buildReference(type, id);
+    }
+
+    return record;
+  },
+
+
 
   /**
     @method findMany
@@ -1727,20 +1745,13 @@ Store = Service.extend({
     @param {Object} data
     @return {DS.Model} record
   */
-  buildRecord: function(type, id, data) {
+  _buildRecord: function(type, id, data) {
     var typeMap = this.typeMapFor(type);
     var idToRecord = typeMap.idToRecord;
 
     Ember.assert('The id ' + id + ' has already been used with another record of type ' + type.toString() + '.', !id || !idToRecord[id]);
     Ember.assert("`" + Ember.inspect(type)+ "` does not appear to be an ember-data model", (typeof type._create === 'function') );
 
-    // lookupFactory should really return an object that creates
-    // instances with the injections applied
-    var record = type._create({
-      id: id,
-      store: this,
-      container: this.container
-    });
 
     if (data) {
       record.setupData(data);
@@ -1755,6 +1766,39 @@ Store = Service.extend({
     typeMap.records.push(record);
 
     return record;
+  },
+
+  /**
+    Build a brand new record for a given type, ID, and
+    initial data.
+
+    @method buildRecord
+    @private
+    @param {subclass of DS.Model} type
+    @param {String} id
+    @param {Object} data
+    @return {DS.Model} record
+  */
+  buildReference: function(type, id, data) {
+    var typeMap = this.typeMapFor(type);
+    var idToRecord = typeMap.idToRecord;
+
+    Ember.assert('The id ' + id + ' has already been used with another record of type ' + type.toString() + '.', !id || !idToRecord[id]);
+    Ember.assert("`" + Ember.inspect(type)+ "` does not appear to be an ember-data model", (typeof type._create === 'function') );
+
+    // lookupFactory should really return an object that creates
+    // instances with the injections applied
+    var reference = new Reference(type, id, this, this.container, data);
+
+    // if we're creating an item, this process will be done
+    // later, once the object has been persisted.
+    if (id) {
+      idToRecord[id] = reference;
+    }
+
+    typeMap.records.push(reference);
+
+    return reference;
   },
 
   //Called by the state machine to notify the store that the record is ready to be interacted with
