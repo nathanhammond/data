@@ -87,6 +87,9 @@ if (!Backburner.prototype.join) {
 }
 
 
+function promiseRecord(reference, label) {
+  return promiseObject(reference.getRecord(), label);
+}
 var get = Ember.get;
 var set = Ember.set;
 var once = Ember.run.once;
@@ -603,10 +606,28 @@ Store = Service.extend({
   findById: function(typeName, id, preload) {
 
     var type = this.modelFor(typeName);
-    var record = this.recordForId(type, id);
+    var reference = this.referenceForId(type, id);
 
-    return this._findByRecord(record, preload);
+    return this._findByRecord(reference, preload);
   },
+
+  _findByReference: function(reference, preload) {
+    var fetchedReference;
+
+    if (preload) {
+      reference._preloadData(preload);
+    }
+
+    if (get(reference, 'isEmpty')) {
+      fetchedReference = this.scheduleFetch(reference);
+      //TODO double check about reloading
+    } else if (get(reference, 'isLoading')) {
+      fetchedReference = reference._loadingPromise;
+    }
+
+    return promiseRecord(fetchedReference || reference, "DS: Store#findByRecord " + reference.typeKey + " with id: " + get(reference, 'id'));
+  },
+
 
   _findByRecord: function(record, preload) {
     var fetchedRecord;
@@ -622,7 +643,7 @@ Store = Service.extend({
       fetchedRecord = record._loadingPromise;
     }
 
-    return promiseObject(fetchedRecord || record, "DS: Store#findByRecord " + record.typeKey + " with id: " + get(record, 'id'));
+    return promiseRecord(fetchedRecord || record, "DS: Store#findByRecord " + record.typeKey + " with id: " + get(record, 'id'));
   },
 
   /**
@@ -1410,12 +1431,15 @@ Store = Service.extend({
   */
   _load: function(type, data) {
     var id = coerceId(data.id);
-    var record = this.recordForId(type, id);
+    var reference = this.referenceForId(type, id);
 
-    record.setupData(data);
-    this.recordArrayManager.recordDidChange(record);
+    reference.setupData(data);
+    //var record = reference.getRecord();
 
-    return record;
+    //TODO(ref): put back
+    //this.recordArrayManager.recordDidChange(record);
+
+    return reference;
   },
 
   /*
@@ -1576,17 +1600,18 @@ Store = Service.extend({
     }
 
     // Actually load the record into the store.
+    var reference = this._load(type, data);
 
-    this._load(type, data);
-
-    var record = this.recordForId(type, data.id);
     var store = this;
 
-    this._backburner.join(function() {
-      store._backburner.schedule('normalizeRelationships', store, '_setupRelationships', record, type, data);
-    });
+    //TODO(ref) Bring back relationship support
+    /*
+      this._backburner.join(function() {
+        store._backburner.schedule('normalizeRelationships', store, '_setupRelationships', record, type, data);
+      });
+    */
 
-    return record;
+    return reference.getRecord();
   },
 
   _setupRelationships: function(record, type, data) {
