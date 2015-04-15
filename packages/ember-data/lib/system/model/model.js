@@ -1,8 +1,6 @@
-import RootState from "ember-data/system/model/states";
 import Errors from "ember-data/system/model/errors";
 import { PromiseObject } from "ember-data/system/promise-proxies";
 import JSONSerializer from "ember-data/serializers/json-serializer";
-import createRelationshipFor from "ember-data/system/relationships/state/create";
 import Snapshot from "ember-data/system/snapshot";
 
 /**
@@ -21,20 +19,6 @@ var retrieveFromCurrentState = Ember.computed('currentState', function(key) {
   return get(get(this, 'currentState'), key);
 }).readOnly();
 
-var _extractPivotNameCache = Ember.create(null);
-var _splitOnDotCache = Ember.create(null);
-
-function splitOnDot(name) {
-  return _splitOnDotCache[name] || (
-    _splitOnDotCache[name] = name.split('.')
-  );
-}
-
-function extractPivotName(name) {
-  return _extractPivotNameCache[name] || (
-    _extractPivotNameCache[name] = splitOnDot(name)[0]
-  );
-}
 
 // Like Ember.merge, but instead returns a list of keys
 // for values that fail a strict equality check
@@ -324,12 +308,13 @@ var Model = Ember.Object.extend(Ember.Evented, {
   */
   id: null,
 
+  //TODO proxy from internal
   /**
     @property currentState
     @private
     @type {Object}
-  */
   currentState: RootState.empty,
+  */
 
   /**
     When the record is in the `invalid` state this object will contain
@@ -501,82 +486,29 @@ var Model = Ember.Object.extend(Ember.Evented, {
   }).readOnly(),
 
 
+  //TODO Enable this as public props once we are not using them internally
   /**
     @method send
     @private
     @param {String} name
     @param {Object} context
-  */
   send: function(name, context) {
-    var currentState = get(this, 'currentState');
-
-    if (!currentState[name]) {
-      this._unhandledEvent(currentState, name, context);
-    }
-
-    return currentState[name](this, context);
+    return this.reference.send(name, context);
   },
 
   /**
     @method transitionTo
     @private
     @param {String} name
-  */
   transitionTo: function(name) {
-    // POSSIBLE TODO: Remove this code and replace with
-    // always having direct references to state objects
-
-    var pivotName = extractPivotName(name);
-    var currentState = get(this, 'currentState');
-    var state = currentState;
-
-    do {
-      if (state.exit) { state.exit(this); }
-      state = state.parentState;
-    } while (!state.hasOwnProperty(pivotName));
-
-    var path = splitOnDot(name);
-    var setups = [];
-    var enters = [];
-    var i, l;
-
-    for (i=0, l=path.length; i<l; i++) {
-      state = state[path[i]];
-
-      if (state.enter) { enters.push(state); }
-      if (state.setup) { setups.push(state); }
-    }
-
-    for (i=0, l=enters.length; i<l; i++) {
-      enters[i].enter(this);
-    }
-
-    set(this, 'currentState', state);
-
-    for (i=0, l=setups.length; i<l; i++) {
-      setups[i].setup(this);
-    }
-
-    this.updateRecordArraysLater();
+    return this.reference.transitionTo(name);
   },
 
-  _unhandledEvent: function(state, name, context) {
-    var errorMessage = "Attempted to handle event `" + name + "` ";
-    errorMessage    += "on " + String(this) + " while in state ";
-    errorMessage    += state.stateName + ". ";
-
-    if (context !== undefined) {
-      errorMessage  += "Called with " + Ember.inspect(context) + ".";
-    }
-
-    throw new Ember.Error(errorMessage);
-  },
 
   /**
     @method loadingData
     @private
     @param {Promise} promise
-  */
   loadingData: function(promise) {
     this.send('loadingData', promise);
   },
@@ -584,7 +516,6 @@ var Model = Ember.Object.extend(Ember.Evented, {
   /**
     @method loadedData
     @private
-  */
   loadedData: function() {
     this.send('loadedData');
   },
@@ -592,7 +523,6 @@ var Model = Ember.Object.extend(Ember.Evented, {
   /**
     @method notFound
     @private
-  */
   notFound: function() {
     this.send('notFound');
   },
@@ -600,11 +530,10 @@ var Model = Ember.Object.extend(Ember.Evented, {
   /**
     @method pushedData
     @private
-  */
   pushedData: function() {
     this.send('pushedData');
   },
-
+  */
   /**
     Marks the record as deleted but does not save it. You must call
     `save` afterwards if you want to persist it. You might use this
@@ -668,8 +597,7 @@ var Model = Ember.Object.extend(Ember.Evented, {
   */
   unloadRecord: function() {
     if (this.isDestroyed) { return; }
-
-    this.send('unloadRecord');
+    this.reference.unloadRecord();
   },
 
   /**
@@ -913,28 +841,6 @@ var Model = Ember.Object.extend(Ember.Evented, {
 
     Ember.tryInvoke(this, name, args);
     this._super.apply(this, arguments);
-  },
-
-  triggerLater: function() {
-    var length = arguments.length;
-    var args = new Array(length);
-
-    for (var i = 0; i < length; i++) {
-      args[i] = arguments[i];
-    }
-
-    if (this._deferredTriggers.push(args) !== 1) {
-      return;
-    }
-    Ember.run.schedule('actions', this, '_triggerDeferredTriggers');
-  },
-
-  _triggerDeferredTriggers: function() {
-    for (var i=0, l= this._deferredTriggers.length; i<l; i++) {
-      this.trigger.apply(this, this._deferredTriggers[i]);
-    }
-
-    this._deferredTriggers.length = 0;
   },
 
   willDestroy: function() {

@@ -317,7 +317,7 @@ export default function attr(type, options) {
         // the 'didSetProperty' handler if it is no different from the original value
         reference._attributes[key] = value;
 
-        this.send('didSetProperty', {
+        this.reference.send('didSetProperty', {
           name: key,
           oldValue: oldValue,
           originalValue: reference._data[key],

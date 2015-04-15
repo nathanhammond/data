@@ -1,9 +1,26 @@
 import merge from "ember-data/system/merge";
+import RootState from "ember-data/system/model/states";
+import createRelationshipFor from "ember-data/system/relationships/state/create";
 
 var get = Ember.get;
 var set = Ember.set;
 var forEach = Ember.ArrayPolyfills.forEach;
 var map = Ember.ArrayPolyfills.map;
+
+var _extractPivotNameCache = Ember.create(null);
+var _splitOnDotCache = Ember.create(null);
+
+function splitOnDot(name) {
+  return _splitOnDotCache[name] || (
+    _splitOnDotCache[name] = name.split('.')
+  );
+}
+
+function extractPivotName(name) {
+  return _extractPivotNameCache[name] || (
+    _extractPivotNameCache[name] = splitOnDot(name)[0]
+  );
+}
 
 var Reference = function(type, id, store, container, data) {
   this.type = type;
@@ -36,6 +53,7 @@ Reference.prototype = {
     this._attributes = Ember.create(null);
     this._inFlightAttributes = Ember.create(null);
     this._relationships = {};
+    this.currentState = RootState.empty,
     /*
       implicit relationships are relationship which have not been declared but the inverse side exists on
       another record somewhere
@@ -57,13 +75,12 @@ Reference.prototype = {
       when we are deleted
     */
     this._implicitRelationships = Ember.create(null);
-    //var model = this;
+    var model = this;
     //TODO Move into a getter for better perf
-    /*
-    this.constructor.eachRelationship(function(key, descriptor) {
+    this.eachRelationship(function(key, descriptor) {
       model._relationships[key] = createRelationshipFor(model, descriptor, model.store);
+      //model._relationships[key] = createRelationshipFor(model, descriptor, model.store);
     });
-    */
   },
 
   getRecord: function() {
@@ -74,7 +91,15 @@ Reference.prototype = {
   },
 
   unloadRecord: function() {
-    return this.record.unloadRecord();
+    this.send('unloadRecord');
+  },
+
+  eachRelationship: function(callback, binding) {
+    return this.type.eachRelationship(callback, binding);
+  },
+
+  inverseFor: function(key) {
+    return this.type.inverseFor(key);
   },
 
   setupData: function(data) {
@@ -86,6 +111,131 @@ Reference.prototype = {
     return this.record.destroy();
   },
 
+  /**
+    @method loadingData
+    @private
+    @param {Promise} promise
+  */
+  loadingData: function(promise) {
+    this.send('loadingData', promise);
+  },
+
+  /**
+    @method loadedData
+    @private
+  */
+  loadedData: function() {
+    this.send('loadedData');
+  },
+
+  /**
+    @method notFound
+    @private
+  */
+  notFound: function() {
+    this.send('notFound');
+  },
+
+  /**
+    @method pushedData
+    @private
+  */
+  pushedData: function() {
+    this.send('pushedData');
+  },
+  /**
+    @method send
+    @private
+    @param {String} name
+    @param {Object} context
+  */
+  send: function(name, context) {
+    var currentState = get(this, 'currentState');
+
+    if (!currentState[name]) {
+      this._unhandledEvent(currentState, name, context);
+    }
+
+    return currentState[name](this, context);
+  },
+
+  /**
+    @method transitionTo
+    @private
+    @param {String} name
+  */
+  transitionTo: function(name) {
+    // POSSIBLE TODO: Remove this code and replace with
+    // always having direct references to state objects
+
+    var pivotName = extractPivotName(name);
+    var currentState = get(this, 'currentState');
+    var state = currentState;
+
+    do {
+      if (state.exit) { state.exit(this); }
+      state = state.parentState;
+    } while (!state.hasOwnProperty(pivotName));
+
+    var path = splitOnDot(name);
+    var setups = [];
+    var enters = [];
+    var i, l;
+
+    for (i=0, l=path.length; i<l; i++) {
+      state = state[path[i]];
+
+      if (state.enter) { enters.push(state); }
+      if (state.setup) { setups.push(state); }
+    }
+
+    for (i=0, l=enters.length; i<l; i++) {
+      enters[i].enter(this);
+    }
+
+    set(this, 'currentState', state);
+
+    for (i=0, l=setups.length; i<l; i++) {
+      setups[i].setup(this);
+    }
+
+    this.updateRecordArraysLater();
+  },
+
+  _unhandledEvent: function(state, name, context) {
+    var errorMessage = "Attempted to handle event `" + name + "` ";
+    errorMessage    += "on " + String(this) + " while in state ";
+    errorMessage    += state.stateName + ". ";
+
+    if (context !== undefined) {
+      errorMessage  += "Called with " + Ember.inspect(context) + ".";
+    }
+
+    throw new Ember.Error(errorMessage);
+  },
+
+  triggerLater: function() {
+    var length = arguments.length;
+    var args = new Array(length);
+
+    for (var i = 0; i < length; i++) {
+      args[i] = arguments[i];
+    }
+
+    if (this._deferredTriggers.push(args) !== 1) {
+      return;
+    }
+    Ember.run.schedule('actions', this, '_triggerDeferredTriggers');
+  },
+
+  //TODO double check whether we care about having the record
+  _triggerDeferredTriggers: function() {
+    for (var i=0, l= this._deferredTriggers.length; i<l; i++) {
+      this.record.trigger.apply(this.record, this._deferredTriggers[i]);
+    }
+
+    this._deferredTriggers.length = 0;
+  },
   /**
     @method clearRelationships
     @private

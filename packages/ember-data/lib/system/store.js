@@ -332,15 +332,17 @@ Store = Service.extend({
 
     // Move the record out of its initial `empty` state into
     // the `loaded` state.
-    record.loadedData();
+    reference.loadedData();
 
     // Set the properties specified on the record.
     record.setProperties(properties);
 
+    //TODO Bring baaaaack
+    /*
     record.eachRelationship(function(key, descriptor) {
       record._relationships[key].setHasData(true);
     });
-
+   */
     return record;
   },
 
