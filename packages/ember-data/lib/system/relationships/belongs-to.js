@@ -80,19 +80,19 @@ function belongsTo(type, options) {
 
   return computedPolyfill({
     get: function(key) {
-      return this._relationships[key].getRecord();
+      return this._reference.relationships[key].getRecord();
     },
     set: function(key, value) {
       if (value === undefined) {
         value = null;
       }
       if (value && value.then) {
-        this._relationships[key].setRecordPromise(value);
+        this.reference._relationships[key].setRecordPromise(value);
       } else {
-        this._relationships[key].setRecord(value);
+        this.reference._relationships[key].setRecord(value.reference);
       }
 
-      return this._relationships[key].getRecord();
+      return this.reference._relationships[key].getRecord();
     }
   }).meta(meta);
 }

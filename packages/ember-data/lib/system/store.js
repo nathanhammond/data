@@ -625,10 +625,10 @@ Store = Service.extend({
       reference._preloadData(preload);
     }
 
-    if (get(reference, 'isEmpty')) {
+    if (reference.isEmpty()) {
       fetchedReference = this.scheduleFetch(reference);
       //TODO double check about reloading
-    } else if (get(reference, 'isLoading')) {
+    } else if (reference.isLoading()) {
       fetchedReference = reference._loadingPromise;
     }
 
@@ -643,10 +643,10 @@ Store = Service.extend({
       record._preloadData(preload);
     }
 
-    if (get(record, 'isEmpty')) {
+    if (record.isEmpty()) {
       fetchedRecord = this.scheduleFetch(record);
       //TODO double check about reloading
-    } else if (get(record, 'isLoading')) {
+    } else if (record.isLoading()) {
       fetchedRecord = record._loadingPromise;
     }
 
@@ -840,7 +840,7 @@ Store = Service.extend({
   */
   getById: function(type, id) {
     if (this.hasRecordForId(type, id)) {
-      return this.recordForId(type, id);
+      return this.referenceForId(type, id).getRecord();
     } else {
       return null;
     }
@@ -882,7 +882,7 @@ Store = Service.extend({
     var type = this.modelFor(typeName);
     var id = coerceId(inputId);
     var record = this.typeMapFor(type).idToRecord[id];
-    return !!record && get(record, 'isLoaded');
+    return !!record && record.isLoaded();
   },
 
   /**
@@ -1223,7 +1223,7 @@ Store = Service.extend({
   */
   recordIsLoaded: function(type, id) {
     if (!this.hasRecordForId(type, id)) { return false; }
-    return !get(this.recordForId(type, id), 'isEmpty');
+    return this.referenceForId(type, id).isEmpty();
   },
 
   /**
@@ -1310,9 +1310,9 @@ Store = Service.extend({
 
       if (get(record, 'currentState.stateName') === 'root.deleted.saved') {
         return resolver.resolve(record);
-      } else if (get(record, 'isNew')) {
+      } else if (record.isNew()) {
         operation = 'createRecord';
-      } else if (get(record, 'isDeleted')) {
+      } else if (record.isDeleted()) {
         operation = 'deleteRecord';
       } else {
         operation = 'updateRecord';
@@ -2053,11 +2053,11 @@ function deserializeRecordId(store, data, key, relationship, id) {
 
   if (typeof id === 'number' || typeof id === 'string') {
     type = typeFor(relationship, key, data);
-    data[key] = store.recordForId(type, id);
+    data[key] = store.referenceForId(type, id);
   } else if (typeof id === 'object') {
     // hasMany polymorphic
     Ember.assert('Ember Data expected a number or string to represent the record(s) in the `' + relationship.key + '` relationship instead it found an object. If this is a polymorphic relationship please specify a `type` key. If this is an embedded relationship please include the `DS.EmbeddedRecordsMixin` and specify the `' + relationship.key +'` property in your serializer\'s attrs object.', id.type);
-    data[key] = store.recordForId(id.type, id.id);
+    data[key] = store.referenceForId(id.type, id.id);
   }
 }
 

@@ -2,6 +2,7 @@ import merge from "ember-data/system/merge";
 import RootState from "ember-data/system/model/states";
 import createRelationshipFor from "ember-data/system/relationships/state/create";
 import Snapshot from "ember-data/system/snapshot";
+import { PromiseObject } from "ember-data/system/promise-proxies";
 
 var get = Ember.get;
 var set = Ember.set;
@@ -23,6 +24,12 @@ function extractPivotName(name) {
   );
 }
 
+function retrieveFromCurrentState(key) {
+  return function() {
+    return get(this.currentState, key);
+  };
+}
+
 var Reference = function(type, id, store, container, data) {
   this.type = type;
   this.id = id;
@@ -30,11 +37,21 @@ var Reference = function(type, id, store, container, data) {
   this.container = container;
   this._setup();
   this._data = data || {};
-  this.isEmpty = true;
   this.typeKey = type.typeKey;
 };
 
 Reference.prototype = {
+  isEmpty: retrieveFromCurrentState('isEmpty'),
+  isLoading: retrieveFromCurrentState('isLoading'),
+  isLoaded: retrieveFromCurrentState('isLoaded'),
+  isDirty: retrieveFromCurrentState('isDirty'),
+  isSaving: retrieveFromCurrentState('isSaving'),
+  isDeleted: retrieveFromCurrentState('isDeleted'),
+  isNew: retrieveFromCurrentState('isNew'),
+  isValid: retrieveFromCurrentState('isValid'),
+  dirtyType: retrieveFromCurrentState('dirtyType'),
+
+
   constructor: Reference,
   materializeRecord: function() {
     // lookupFactory should really return an object that creates
@@ -45,7 +62,6 @@ Reference.prototype = {
       container: this.container,
       reference: this
     });
-    this.isEmpty = false;
   },
 
   _setup: function() {
@@ -84,6 +100,23 @@ Reference.prototype = {
     });
   },
 
+  deleteRecord: function() {
+    this.send('deleteRecord');
+  },
+
+  save: function() {
+    var promiseLabel = "DS: Model#save " + this;
+    var resolver = Ember.RSVP.defer(promiseLabel);
+
+    this.store.scheduleSave(this, resolver);
+    this._inFlightAttributes = this._attributes;
+    this._attributes = Ember.create(null);
+
+    return PromiseObject.create({
+      promise: resolver.promise
+    });
+  },
+
   getRecord: function() {
     if (!this.record) {
       this.materializeRecord();
@@ -110,6 +143,7 @@ Reference.prototype = {
   setupData: function(data) {
     //var changedKeys = mergeAndReturnChangedKeys(this._data, data);
     mergeAndReturnChangedKeys(this._data, data);
+    this.pushedData();
   },
 
   destroy: function() {
@@ -158,6 +192,23 @@ Reference.prototype = {
   pushedData: function() {
     this.send('pushedData');
   },
+
+  /**
+    @method adapterWillCommit
+    @private
+  */
+  adapterWillCommit: function() {
+    this.send('willCommit');
+  },
+
+  /**
+    @method adapterDidDirty
+    @private
+  */
+  adapterDidDirty: function() {
+    this.send('becomeDirty');
+    this.updateRecordArraysLater();
+  },
   /**
     @method send
     @private
@@ -172,6 +223,18 @@ Reference.prototype = {
     }
 
     return currentState[name](this, context);
+  },
+
+  notifyHasManyAdded: function(key, record, idx) {
+    this.record.notifyHasManyAdded(key, record, idx);
+  },
+
+  notifyHasManyRemoved: function(key, record, idx) {
+    this.record.notifyHasManyRemoved(key, record, idx);
+  },
+
+  notifyBelongsToChanged: function(key, record, idx) {
+    this.record.notifyBelongsToChanged(key, record, idx);
   },
 
   /**
@@ -353,7 +416,7 @@ Reference.prototype = {
 
   _convertStringOrNumberIntoRecord: function(value, type) {
     if (Ember.typeOf(value) === 'string' || Ember.typeOf(value) === 'number') {
-      return this.store.recordForId(type, value);
+      return this.store.referenceForId(type, value);
     }
     return value;
   },

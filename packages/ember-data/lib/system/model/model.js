@@ -16,7 +16,7 @@ var RESERVED_MODEL_PROPS = [
 ];
 
 var retrieveFromCurrentState = Ember.computed('currentState', function(key) {
-  return get(get(this, 'currentState'), key);
+  return get(this.reference.currentState, key);
 }).readOnly();
 
 
@@ -561,7 +561,7 @@ var Model = Ember.Object.extend(Ember.Evented, {
     @method deleteRecord
   */
   deleteRecord: function() {
-    this.send('deleteRecord');
+    this.reference.deleteRecord();
   },
 
   /**
@@ -648,10 +648,10 @@ var Model = Ember.Object.extend(Ember.Evented, {
     return diffData;
   },
 
+  //Bring back as hooks?
   /**
     @method adapterWillCommit
     @private
-  */
   adapterWillCommit: function() {
     this.send('willCommit');
   },
@@ -659,11 +659,11 @@ var Model = Ember.Object.extend(Ember.Evented, {
   /**
     @method adapterDidDirty
     @private
-  */
   adapterDidDirty: function() {
     this.send('becomeDirty');
     this.updateRecordArraysLater();
   },
+  */
 
 
 
@@ -730,14 +730,14 @@ var Model = Ember.Object.extend(Ember.Evented, {
   },
 
 
-  //TODO maybe bring back
-  /**
+  //TODO not sure what to do
+  /*
     @method _createSnapshot
     @private
-  _createSnapshot: function() {
-    return new Snapshot(this);
-  },
   */
+  _createSnapshot: function() {
+    return this.reference._createSnapshot();
+  },
 
   toStringExtension: function() {
     return get(this, 'id');
@@ -762,15 +762,9 @@ var Model = Ember.Object.extend(Ember.Evented, {
     successfully or rejected if the adapter returns with an error.
   */
   save: function() {
-    var promiseLabel = "DS: Model#save " + this;
-    var resolver = Ember.RSVP.defer(promiseLabel);
-
-    this.store.scheduleSave(this, resolver);
-    this._inFlightAttributes = this._attributes;
-    this._attributes = Ember.create(null);
-
-    return PromiseObject.create({
-      promise: resolver.promise
+    var model = this;
+    return this.reference.save().then(function() {
+      return model;
     });
   },
 

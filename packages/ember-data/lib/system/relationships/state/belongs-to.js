@@ -62,14 +62,15 @@ BelongsToRelationship.prototype._super$addRecord = Relationship.prototype.addRec
 BelongsToRelationship.prototype.addRecord = function(newRecord) {
   if (this.members.has(newRecord)) { return;}
   var type = this.relationshipMeta.type;
-  Ember.assert("You cannot add a '" + newRecord.constructor.typeKey + "' record to the '" + this.record.constructor.typeKey + "." + this.key +"'. " + "You can only add a '" + type.typeKey + "' record to this relationship.", (function () {
+  //TODO GAAAAAA, we need to do a subclass check here insted of instance of
+  Ember.assert("You cannot add a '" + newRecord.type.typeKey + "' record to the '" + this.record.type.typeKey + "." + this.key +"'. " + "You can only add a '" + type.typeKey + "' record to this relationship.", (function () {
     if (type.__isMixin) {
-      return type.__mixin.detect(newRecord);
+      return type.__mixin.detect(newRecord.record);
     }
     if (Ember.MODEL_FACTORY_INJECTIONS) {
       type = type.superclass;
     }
-    return newRecord instanceof type;
+    return newRecord.record instanceof type;
   })());
 
   if (this.inverseRecord) {
@@ -138,8 +139,9 @@ BelongsToRelationship.prototype.getRecord = function() {
       content: this.inverseRecord
     });
   } else {
-    Ember.assert("You looked up the '" + this.key + "' relationship on a '" + this.record.constructor.typeKey + "' with id " + this.record.get('id') +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.belongsTo({ async: true })`)", this.inverseRecord === null || !this.inverseRecord.get('isEmpty'));
-    return this.inverseRecord;
+    var toReturn = this.inverseRecord.getRecord();
+    Ember.assert("You looked up the '" + this.key + "' relationship on a '" + this.record.type.typeKey + "' with id " + this.record.id +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.belongsTo({ async: true })`)", toReturn === null || !toReturn.get('isEmpty'));
+    return toReturn;
   }
 };
 
