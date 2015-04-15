@@ -139,6 +139,9 @@ BelongsToRelationship.prototype.getRecord = function() {
       content: this.inverseRecord
     });
   } else {
+    if (this.inverseRecord === null) {
+      return null;
+    }
     var toReturn = this.inverseRecord.getRecord();
     Ember.assert("You looked up the '" + this.key + "' relationship on a '" + this.record.type.typeKey + "' with id " + this.record.id +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.belongsTo({ async: true })`)", toReturn === null || !toReturn.get('isEmpty'));
     return toReturn;

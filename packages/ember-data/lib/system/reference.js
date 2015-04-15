@@ -60,8 +60,8 @@ Reference.prototype = {
       id: this.id,
       store: this.store,
       container: this.container,
-      reference: this
     });
+    this.record.reference = this;
   },
 
   _setup: function() {
@@ -375,7 +375,7 @@ Reference.prototype = {
     //TODO(Igor) consider the polymorphic case
     forEach.call(Ember.keys(preload), function(key) {
       var preloadValue = get(preload, key);
-      var relationshipMeta = record.constructor.metaForProperty(key);
+      var relationshipMeta = record.type.metaForProperty(key);
       if (relationshipMeta.isRelationship) {
         record._preloadRelationship(key, preloadValue);
       } else {
@@ -385,7 +385,7 @@ Reference.prototype = {
   },
 
   _preloadRelationship: function(key, preloadValue) {
-    var relationshipMeta = this.constructor.metaForProperty(key);
+    var relationshipMeta = this.type.metaForProperty(key);
     var type = relationshipMeta.type;
     if (relationshipMeta.kind === 'hasMany') {
       this._preloadHasMany(key, preloadValue, type);
@@ -428,7 +428,7 @@ Reference.prototype = {
   */
   updateRecordArrays: function() {
     this._updatingRecordArraysLater = false;
-    this.store.dataWasUpdated(this.constructor, this);
+    this.store.dataWasUpdated(this.type, this);
   },
 
   /**

@@ -140,6 +140,7 @@ test("a collision of a record's id with object function's name", function() {
   }
 });
 
+/*
 test("it should use `_reference` and not `reference` to store its reference", function() {
   expect(1);
 
@@ -151,6 +152,7 @@ test("it should use `_reference` and not `reference` to store its reference", fu
     });
   });
 });
+*/
 
 test("it should cache attributes", function() {
   expect(2);

@@ -80,7 +80,7 @@ function belongsTo(type, options) {
 
   return computedPolyfill({
     get: function(key) {
-      return this._reference.relationships[key].getRecord();
+      return this.reference._relationships[key].getRecord();
     },
     set: function(key, value) {
       if (value === undefined) {
