@@ -88,8 +88,10 @@ function belongsTo(type, options) {
       }
       if (value && value.then) {
         this.reference._relationships[key].setRecordPromise(value);
-      } else {
+      } else if (value) {
         this.reference._relationships[key].setRecord(value.reference);
+      } else {
+        this.reference._relationships[key].setRecord(value);
       }
 
       return this.reference._relationships[key].getRecord();

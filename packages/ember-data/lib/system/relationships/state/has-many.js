@@ -3,6 +3,8 @@ import Relationship from "ember-data/system/relationships/state/relationship";
 import OrderedSet from "ember-data/system/ordered-set";
 import ManyArray from "ember-data/system/many-array";
 
+var map = Ember.EnumerableUtils.map;
+
 var ManyRelationship = function(store, record, inverseKey, relationshipMeta) {
   this._super$constructor(store, record, inverseKey, relationshipMeta);
   this.belongsToType = relationshipMeta.type;
@@ -154,7 +156,8 @@ ManyRelationship.prototype.fetchLink = function() {
 
 ManyRelationship.prototype.findRecords = function() {
   var manyArray = this.manyArray;
-  return this.store.findMany(manyArray.toArray()).then(function() {
+  //TODO CLEANUP
+  return this.store.findMany(map(manyArray.toArray(), function(rec) { return rec.reference; })).then(function() {
     //Goes away after the manyArray refactor
     manyArray.set('isLoaded', true);
     return manyArray;

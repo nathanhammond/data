@@ -6,6 +6,7 @@ import { PromiseArray } from "ember-data/system/promise-proxies";
 var get = Ember.get;
 var set = Ember.set;
 var filter = Ember.ArrayPolyfills.filter;
+var map = Ember.EnumerableUtils.map;
 
 /**
   A `ManyArray` is a `MutableArray` that represents the contents of a has-many
@@ -148,10 +149,10 @@ export default Ember.Object.extend(Ember.MutableArray, Ember.Evented, {
     var records;
     if (amt > 0) {
       records = this.currentState.slice(idx, idx+amt);
-      this.get('relationship').removeRecords(records);
+      this.get('relationship').removeRecords(map(records, function(rec) { return rec.reference;}));
     }
     if (objects) {
-      this.get('relationship').addRecords(objects, idx);
+      this.get('relationship').addRecords(map(objects, function(obj) { return obj.reference; }), idx);
     }
   },
   /**

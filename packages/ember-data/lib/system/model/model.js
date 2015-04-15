@@ -699,33 +699,7 @@ var Model = Ember.Object.extend(Ember.Evented, {
     @method rollback
   */
   rollback: function() {
-    var dirtyKeys = Ember.keys(this._attributes);
-
-    this._attributes = Ember.create(null);
-
-    if (get(this, 'isError')) {
-      this._inFlightAttributes = Ember.create(null);
-      set(this, 'isError', false);
-    }
-
-    //Eventually rollback will always work for relationships
-    //For now we support it only out of deleted state, because we
-    //have an explicit way of knowing when the server acked the relationship change
-    if (get(this, 'isDeleted')) {
-      this.reconnectRelationships();
-    }
-
-    if (get(this, 'isNew')) {
-      this.clearRelationships();
-    }
-
-    if (!get(this, 'isValid')) {
-      this._inFlightAttributes = Ember.create(null);
-    }
-
-    this.send('rolledBack');
-
-    this._notifyProperties(dirtyKeys);
+    this.reference.rollback();
   },
 
 

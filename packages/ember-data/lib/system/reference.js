@@ -261,12 +261,47 @@ Reference.prototype = {
     }
   },
 
-  notifyBelongsToChanged: function(key, record, idx) {
+  notifyBelongsToChanged: function(key, record) {
     if (this.record) {
-      this.record.notifyBelongsToChanged(key, record, idx);
+      this.record.notifyBelongsToChanged(key, record);
     }
   },
 
+  notifyPropertyChange: function(key) {
+    if (this.record) {
+      this.record.notifyPropertyChange(key);
+    }
+  },
+  rollback: function() {
+    var dirtyKeys = Ember.keys(this._attributes);
+
+    this._attributes = Ember.create(null);
+
+    if (get(this, 'isError')) {
+      this._inFlightAttributes = Ember.create(null);
+      set(this, 'isError', false);
+    }
+
+    //Eventually rollback will always work for relationships
+    //For now we support it only out of deleted state, because we
+    //have an explicit way of knowing when the server acked the relationship change
+    if (this.isDeleted()) {
+      this.reconnectRelationships();
+    }
+
+    if (this.isNew()) {
+      this.clearRelationships();
+    }
+
+    if (this.isValid()) {
+      this._inFlightAttributes = Ember.create(null);
+    }
+
+    this.send('rolledBack');
+
+    this.record._notifyProperties(dirtyKeys);
+
+  },
   /**
     @method transitionTo
     @private

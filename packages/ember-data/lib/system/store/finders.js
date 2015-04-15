@@ -11,6 +11,7 @@ import {
 
 var get = Ember.get;
 var Promise = Ember.RSVP.Promise;
+var map = Ember.EnumerableUtils.map;
 
 export function _find(adapter, store, type, id, record) {
   var snapshot = record._createSnapshot();
@@ -81,8 +82,9 @@ export function _findHasMany(adapter, store, record, link, relationship) {
 
       Ember.assert("The response from a findHasMany must be an Array, not " + Ember.inspect(payload), Ember.typeOf(payload) === 'array');
 
+      //TODO Use a non record creating push
       var records = store.pushMany(relationship.type, payload);
-      return records;
+      return map(records, function(record) { return record.reference; });
     });
   }, null, "DS: Extract payload of " + record + " : hasMany " + relationship.type);
 }
