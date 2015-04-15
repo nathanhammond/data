@@ -1612,11 +1612,9 @@ Store = Service.extend({
     var store = this;
 
     //TODO(ref) Bring back relationship support
-    /*
       this._backburner.join(function() {
-        store._backburner.schedule('normalizeRelationships', store, '_setupRelationships', record, type, data);
+        store._backburner.schedule('normalizeRelationships', store, '_setupRelationships', reference, type, data);
       });
-    */
 
     return reference.getRecord();
   },

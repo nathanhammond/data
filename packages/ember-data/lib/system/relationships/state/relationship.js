@@ -181,7 +181,7 @@ Relationship.prototype = {
     //TODO remove once we have proper diffing
     var newRecords = [];
     for (var i=0; i<this.members.list.length; i++) {
-      if (this.members.list[i].get('isNew')) {
+      if (this.members.list[i].isNew()) {
         newRecords.push(this.members.list[i]);
       }
     }

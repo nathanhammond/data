@@ -9,7 +9,6 @@ import Snapshot from "ember-data/system/snapshot";
 
 var get = Ember.get;
 var set = Ember.set;
-var Promise = Ember.RSVP.Promise;
 var intersection = Ember.EnumerableUtils.intersection;
 var RESERVED_MODEL_PROPS = [
   'currentState', 'data', 'store'
@@ -795,25 +794,11 @@ var Model = Ember.Object.extend(Ember.Evented, {
     with an error.
   */
   reload: function() {
-    set(this, 'isReloading', true);
-
-    var record = this;
-    var promiseLabel = "DS: Model#reload of " + this;
-    var promise = new Promise(function(resolve) {
-      record.send('reloadRecord', resolve);
-    }, promiseLabel).then(function() {
-      record.set('isReloading', false);
-      record.set('isError', false);
-      return record;
-    }, function(reason) {
-      record.set('isError', true);
-      throw reason;
-    }, "DS: Model#reload complete, update flags")['finally'](function () {
-      record.updateRecordArrays();
-    });
-
+    var model = this;
     return PromiseObject.create({
-      promise: promise
+      promise: this.reference.reload().then(function() {
+        return model;
+      })
     });
   },
 

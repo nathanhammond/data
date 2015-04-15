@@ -71,13 +71,13 @@ export default Ember.Object.extend(Ember.MutableArray, Ember.Evented, {
   flushCanonical: function() {
     //TODO make this smarter, currently its plenty stupid
     var toSet = filter.call(this.canonicalState, function(record) {
-      return !record.get('isDeleted');
+      return !record.isDeleted();
     });
 
     //a hack for not removing new records
     //TODO remove once we have proper diffing
     var newRecords = this.currentState.filter(function(record) {
-      return record.get('isNew');
+      return record.isNew();
     });
     toSet = toSet.concat(newRecords);
     var oldLength = this.length;

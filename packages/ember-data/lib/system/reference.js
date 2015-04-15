@@ -4,6 +4,7 @@ import createRelationshipFor from "ember-data/system/relationships/state/create"
 import Snapshot from "ember-data/system/snapshot";
 import { PromiseObject } from "ember-data/system/promise-proxies";
 
+var Promise = Ember.RSVP.Promise;
 var get = Ember.get;
 var set = Ember.set;
 var forEach = Ember.ArrayPolyfills.forEach;
@@ -117,6 +118,29 @@ Reference.prototype = {
     });
   },
 
+  reload: function() {
+    set(this, 'isReloading', true);
+
+    var record = this;
+    var promiseLabel = "DS: Model#reload of " + this;
+    return new Promise(function(resolve) {
+      record.send('reloadRecord', resolve);
+    }, promiseLabel).then(function() {
+      //TODO FIXMEMEMEMEME
+      record.record.set('isReloading', false);
+      record.record.set('isError', false);
+      record.isReloading = false;
+      record.isError = false;
+      return record;
+    }, function(reason) {
+      record.record.set('isError', true);
+      record.isError = true;
+      throw reason;
+    }, "DS: Model#reload complete, update flags")['finally'](function () {
+      record.updateRecordArrays();
+    });
+  },
+
   getRecord: function() {
     if (!this.record) {
       this.materializeRecord();
@@ -226,15 +250,21 @@ Reference.prototype = {
   },
 
   notifyHasManyAdded: function(key, record, idx) {
-    this.record.notifyHasManyAdded(key, record, idx);
+    if (this.record) {
+      this.record.notifyHasManyAdded(key, record, idx);
+    }
   },
 
   notifyHasManyRemoved: function(key, record, idx) {
-    this.record.notifyHasManyRemoved(key, record, idx);
+    if (this.record) {
+      this.record.notifyHasManyRemoved(key, record, idx);
+    }
   },
 
   notifyBelongsToChanged: function(key, record, idx) {
-    this.record.notifyBelongsToChanged(key, record, idx);
+    if (this.record) {
+      this.record.notifyBelongsToChanged(key, record, idx);
+    }
   },
 
   /**
@@ -455,7 +485,7 @@ Reference.prototype = {
 
     if (!data) { return; }
 
-    this._notifyProperties(changedKeys);
+    this.record._notifyProperties(changedKeys);
   },
 
   /**
