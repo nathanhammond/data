@@ -304,7 +304,7 @@ export default function attr(type, options) {
       if (hasValue(reference, key)) {
         return getValue(reference, key);
       } else {
-        return getDefaultValue(reference, options, key);
+        return getDefaultValue(this, options, key);
       }
     },
     set: function(key, value) {
