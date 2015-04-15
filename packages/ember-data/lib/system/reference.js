@@ -1,6 +1,7 @@
 import merge from "ember-data/system/merge";
 import RootState from "ember-data/system/model/states";
 import createRelationshipFor from "ember-data/system/relationships/state/create";
+import Snapshot from "ember-data/system/snapshot";
 
 var get = Ember.get;
 var set = Ember.set;
@@ -98,6 +99,10 @@ Reference.prototype = {
     return this.type.eachRelationship(callback, binding);
   },
 
+  eachAttribute: function(callback, binding) {
+    return this.type.eachAttribute(callback, binding);
+  },
+
   inverseFor: function(key) {
     return this.type.inverseFor(key);
   },
@@ -108,7 +113,17 @@ Reference.prototype = {
   },
 
   destroy: function() {
-    return this.record.destroy();
+    if (this.record) {
+      return this.record.destroy();
+    }
+  },
+
+  /**
+    @method _createSnapshot
+    @private
+  */
+  _createSnapshot: function() {
+    return new Snapshot(this);
   },
 
   /**

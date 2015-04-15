@@ -88,7 +88,12 @@ if (!Backburner.prototype.join) {
 
 
 function promiseRecord(reference, label) {
-  return promiseObject(reference.getRecord(), label);
+  //TODO cleanup
+  var toReturn = reference;
+  if (!reference.then) {
+    toReturn = reference.getRecord();
+  }
+  return promiseObject(toReturn, label);
 }
 var get = Ember.get;
 var set = Ember.set;
@@ -677,7 +682,7 @@ Store = Service.extend({
     @return {Promise} promise
   */
   fetchRecord: function(record) {
-    var type = record.constructor;
+    var type = record.type;
     var id = get(record, 'id');
     var adapter = this.adapterFor(type);
 
@@ -693,11 +698,11 @@ Store = Service.extend({
   },
 
   scheduleFetch: function(record) {
-    var type = record.constructor;
+    var type = record.type;
     if (isNone(record)) { return null; }
     if (record._loadingPromise) { return record._loadingPromise; }
 
-    var resolver = Ember.RSVP.defer('Fetching ' + type + 'with id: ' + record.get('id'));
+    var resolver = Ember.RSVP.defer('Fetching ' + type + 'with id: ' + record.id);
     var recordResolverPair = {
       record: record,
       resolver: resolver
@@ -954,9 +959,9 @@ Store = Service.extend({
     @return {Promise} promise
   */
   findHasMany: function(owner, link, type) {
-    var adapter = this.adapterFor(owner.constructor);
+    var adapter = this.adapterFor(owner.type);
 
-    Ember.assert("You tried to load a hasMany relationship but you have no adapter (for " + owner.constructor + ")", adapter);
+    Ember.assert("You tried to load a hasMany relationship but you have no adapter (for " + owner.type + ")", adapter);
     Ember.assert("You tried to load a hasMany relationship from a specified `link` in the original payload but your adapter does not implement `findHasMany`", typeof adapter.findHasMany === 'function');
 
     return _findHasMany(adapter, this, owner, link, type);
@@ -971,9 +976,9 @@ Store = Service.extend({
     @return {Promise} promise
   */
   findBelongsTo: function(owner, link, relationship) {
-    var adapter = this.adapterFor(owner.constructor);
+    var adapter = this.adapterFor(owner.type);
 
-    Ember.assert("You tried to load a belongsTo relationship but you have no adapter (for " + owner.constructor + ")", adapter);
+    Ember.assert("You tried to load a belongsTo relationship but you have no adapter (for " + owner.type + ")", adapter);
     Ember.assert("You tried to load a belongsTo relationship from a specified `link` in the original payload but your adapter does not implement `findBelongsTo`", typeof adapter.findBelongsTo === 'function');
 
     return _findBelongsTo(adapter, this, owner, link, relationship);
@@ -1300,7 +1305,7 @@ Store = Service.extend({
     forEach(pending, function(tuple) {
       var record = tuple[0];
       var resolver = tuple[1];
-      var adapter = this.adapterFor(record.constructor);
+      var adapter = this.adapterFor(record.type);
       var operation;
 
       if (get(record, 'currentState.stateName') === 'root.deleted.saved') {
@@ -1333,7 +1338,7 @@ Store = Service.extend({
   didSaveRecord: function(record, data) {
     if (data) {
       // normalize relationship IDs into records
-      this._backburner.schedule('normalizeRelationships', this, '_setupRelationships', record, record.constructor, data);
+      this._backburner.schedule('normalizeRelationships', this, '_setupRelationships', record, record.type, data);
       this.updateId(record, data);
     }
 
@@ -1385,7 +1390,7 @@ Store = Service.extend({
 
     Ember.assert("An adapter cannot assign a new id to a record that already has an id. " + record + " had id: " + oldId + " and you tried to update it with " + id + ". This likely happened because your server returned data in response to a find or update that had a different id than the one you sent.", oldId === null || id === oldId);
 
-    this.typeMapFor(record.constructor).idToRecord[id] = record;
+    this.typeMapFor(record.type).idToRecord[id] = record;
 
     set(record, 'id', id);
   },
@@ -1857,7 +1862,7 @@ Store = Service.extend({
     @param {DS.Model} record
   */
   _dematerializeRecord: function(record) {
-    var type = record.constructor;
+    var type = record.type;
     var typeMap = this.typeMapFor(type);
     var id = get(record, 'id');
 
@@ -2085,7 +2090,7 @@ function defaultSerializer(container) {
 }
 
 function _commit(adapter, store, operation, record) {
-  var type = record.constructor;
+  var type = record.type;
   var snapshot = record._createSnapshot();
   var promise = adapter[operation](store, type, snapshot);
   var serializer = serializerForAdapter(store, adapter, type);
@@ -2124,7 +2129,7 @@ function _commit(adapter, store, operation, record) {
 }
 
 function setupRelationships(store, record, data) {
-  var type = record.constructor;
+  var type = record.type;
 
   type.eachRelationship(function(key, descriptor) {
     var kind = descriptor.kind;

@@ -24,8 +24,8 @@ function Snapshot(record) {
 
   this.id = get(record, 'id');
   this.record = record;
-  this.type = record.constructor;
-  this.typeKey = record.constructor.typeKey;
+  this.type = record.type;
+  this.typeKey = record.type.typeKey;
 
   // The following code is here to keep backwards compatibility when accessing
   // `constructor` directly.

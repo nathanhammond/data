@@ -729,13 +729,15 @@ var Model = Ember.Object.extend(Ember.Evented, {
     this._notifyProperties(dirtyKeys);
   },
 
+
+  //TODO maybe bring back
   /**
     @method _createSnapshot
     @private
-  */
   _createSnapshot: function() {
     return new Snapshot(this);
   },
+  */
 
   toStringExtension: function() {
     return get(this, 'id');
